@@ -74,14 +74,13 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
 </section>
 <section class="panel">
 <h2>3. 計算結果</h2>
-<div class="actions"><button class="primary" id="calculateButton" type="button">計算する</button></div>
 <div class="results" style="margin-top:12px">
 <div class="result"><div><div class="label">通常の初手確率</div><div class="sub">指定した対象を引く確率</div></div><div class="value" id="normal">—</div></div>
 <div class="result"><div><div class="label">たねポケモンを含む確率</div><div class="sub">初手に1枚以上ある確率</div></div><div class="value" id="basicChance">—</div></div>
 <div class="result"><div><div class="label">マリガン考慮後</div><div class="sub">たねポケモンがある初手に限定</div></div><div class="value" id="conditional">—</div></div>
 </div>
 <div class="bar"><span id="normalBar"></span></div>
-<p id="resultText" class="note" aria-live="polite">「計算する」を押すと結果が表示されます。</p>
+<p id="resultText" class="note" aria-live="polite">入力内容に合わせて確率を自動計算します。</p>
 <details><summary>計算方法について</summary><p class="small">カードを重複なしで引く組合せを用いた超幾何分布で計算します。「マリガン考慮後」は、最初の手札にたねポケモンが1枚以上あるという条件のもとでの確率です。実際の対戦で発生する相手への追加ドローなどは計算対象外です。</p></details>
 </section>
 <section class="panel"><h2>使い方の例</h2><p class="small">サンプルでは「たねポケモン12枚」を対象にしています。実際に使うときは、カード名・枚数・分類・対象チェックを自分のデッキに合わせて変更してください。複数のカードを対象にすると、それらを合計した枚数を引く確率になります。</p></section>
@@ -166,7 +165,6 @@ function calculate(){
 }
 $("addRow").addEventListener("click",()=>{addRow();calculate();});
 $("reset").addEventListener("click",loadSample);
-$("calculateButton").addEventListener("click",calculate);
 ["deckSize","handSize","need"].forEach(id=>$(id).addEventListener("input",calculate));
 loadSample();
 })();
