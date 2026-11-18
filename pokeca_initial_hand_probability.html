@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#172d4d">
+<title>初手確率計算ツール｜ポケカの教室</title>
+<style>
+:root{--navy:#172d4d;--red:#d94b4b;--ink:#172033;--muted:#64748b;--line:#dbe2ea;--bg:#f4f6f9;--white:#fff;--green:#16794b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;line-height:1.55}
+header{background:var(--navy);color:white;padding:22px 16px}
+.head{max-width:980px;margin:auto}
+.brand{font-size:13px;letter-spacing:.08em;color:#d9e5f5}
+h1{font-size:clamp(22px,4vw,30px);margin:5px 0 4px}
+header p{margin:0;color:#d9e5f5;font-size:14px}
+main{max-width:980px;margin:22px auto;padding:0 14px 36px}
+.panel{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #172d4d0a}
+h2{font-size:18px;margin:0 0 12px;color:var(--navy)}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0}
+.controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:5px}
+input[type=number],input[type=text],select{width:100%;min-height:42px;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:white;color:var(--ink);font:inherit}
+input:focus,select:focus,button:focus{outline:3px solid #93c5fd;outline-offset:1px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:570px}
+th,td{padding:9px 7px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}
+th{color:var(--muted);font-weight:700;background:#f8fafc}
+td input[type=text]{min-width:130px}
+td input[type=number]{min-width:74px}
+td select{min-width:120px}
+.center{text-align:center}
+.target-cell{white-space:nowrap}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--navy);vertical-align:middle}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;font-size:14px;cursor:pointer}
+.primary{background:var(--navy);color:white}
+.secondary{background:#e8edf4;color:var(--navy)}
+.danger{background:#fff0f0;color:#a52a2a;padding:8px 10px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.result{background:#f7f9fc;border:1px solid var(--line);border-radius:11px;padding:13px}
+.result .label{font-size:12px;color:var(--muted);font-weight:700}
+.result .value{font-size:clamp(21px,4vw,29px);font-weight:800;color:var(--navy);margin-top:4px;font-variant-numeric:tabular-nums}
+.result .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.status{font-size:13px;font-weight:700;margin:10px 0 0}
+.status.ok{color:var(--green)} .status.err{color:#b42318}
+.bar{height:9px;background:#e7edf4;border-radius:99px;overflow:hidden;margin-top:8px}
+.bar>span{display:block;height:100%;background:var(--red);width:0;transition:width .2s}
+details{margin-top:12px}
+summary{cursor:pointer;font-weight:700;color:var(--navy);font-size:14px}
+.small{font-size:12px;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+@media(max-width:640px){main{margin-top:14px}.panel{padding:14px}.controls{grid-template-columns:1fr 1fr}.results{grid-template-columns:1fr}.result{display:flex;align-items:center;justify-content:space-between;gap:10px}.result .value{font-size:24px}.result .sub{max-width:45%;text-align:right}}
+</style>
+</head>
+<body>
+<header><div class="head"><div class="brand">ポケカの教室</div><h1>初手確率計算ツール</h1><p>デッキの採用枚数から、初手でカードを引く確率を計算します。</p></div></header>
+<main>
+<section class="panel">
+<h2>1. デッキ・手札の設定</h2>
+<div class="controls">
+<div><label for="deckSize">デッキ枚数</label><input id="deckSize" type="number" min="1" max="100" value="60"></div>
+<div><label for="handSize">初手の枚数</label><input id="handSize" type="number" min="1" max="60" value="7"></div>
+<div><label for="need">引きたい枚数</label><select id="need"><option value="1">1枚以上</option><option value="2">2枚以上</option><option value="3">3枚以上</option><option value="4">4枚以上</option></select></div>
+</div>
+<p class="note">通常のポケモンカードゲームを想定した初期値は、デッキ60枚・初手7枚です。</p>
+</section>
+<section class="panel">
+<h2>2. カードの登録</h2>
+<p class="note">カード名またはカードのグループ名と枚数を入力してください。「たね」は、たねポケモンとして扱うカードにチェックします。「対象」は確率を調べたいカードです。カードの合計がデッキ枚数と一致する必要があります。</p>
+<div class="table-wrap">
+<table><thead><tr><th>カード名・グループ名</th><th>枚数</th><th>分類</th><th class="center">対象</th><th></th></tr></thead><tbody id="cardRows"></tbody></table>
+</div>
+<div class="actions"><button class="secondary" id="addRow" type="button">＋ カードを追加</button><button class="secondary" id="reset" type="button">サンプルに戻す</button></div>
+<div id="totalStatus" class="status" aria-live="polite"></div>
+</section>
+<section class="panel">
+<h2>3. 計算結果</h2>
+<div class="results">
+<div class="result"><div><div class="label">通常の初手確率</div><div class="sub">指定した対象を引く確率</div></div><div class="value" id="normal">—</div></div>
+<div class="result"><div><div class="label">たねポケモンを含む確率</div><div class="sub">初手に1枚以上ある確率</div></div><div class="value" id="basicChance">—</div></div>
+<div class="result"><div><div class="label">マリガン考慮後</div><div class="sub">たねポケモンがある初手に限定</div></div><div class="value" id="conditional">—</div></div>
+</div>
+<div class="bar"><span id="normalBar"></span></div>
+<p id="resultText" class="note" aria-live="polite">カードを登録すると自動で計算します。</p>
+<details><summary>計算方法について</summary>
+<p class="small">カードを重複なしで引く組合せを用いた超幾何分布で計算します。「マリガン考慮後」は、最初の手札にたねポケモンが1枚以上あるという条件のもとでの確率です。実際の対戦で発生する相手への追加ドローなどは計算対象外です。</p>
+</details>
+</section>
+<section class="panel">
+<h2>使い方の例</h2>
+<p class="small">サンプルでは「たねポケモン12枚」を対象にしています。実際に使うときは、カード名・枚数・分類・対象チェックを自分のデッキに合わせて変更してください。複数のカードを対象にすると、それらを合計した枚数を引く確率になります。</p>
+</section>
+<footer>ポケカの教室｜非公式ファンサイト・確率計算ツール</footer>
+</main>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const sample=[
+{name:"たねポケモン（例）",count:12,type:"basic",target:true},
+{name:"グッズ（例）",count:12,type:"other",target:false},
+{name:"サポート（例）",count:12,type:"other",target:false},
+{name:"進化ポケモン（例）",count:12,type:"other",target:false},
+{name:"エネルギー（例）",count:12,type:"other",target:false}
+];
+function addRow(data={name:"",count:0,type:"other",target:false}){
+ const tr=document.createElement("tr");
+ tr.innerHTML='<td><input type="text" class="card-name" aria-label="カード名" placeholder="例：なかよしポフィン"></td>'+
+ '<td><input type="number" class="card-count" aria-label="枚数" min="0" max="100" value="0"></td>'+
+ '<td><select class="card-type" aria-label="分類"><option value="basic">たねポケモン</option><option value="other">その他</option></select></td>'+
+ '<td class="center target-cell"><input type="checkbox" class="card-target" aria-label="確率計算の対象にする"></td>'+
+ '<td><button type="button" class="danger remove" aria-label="この行を削除">削除</button></td>';
+ tr.querySelector(".card-name").value=data.name;
+ tr.querySelector(".card-count").value=data.count;
+ tr.querySelector(".card-type").value=data.type;
+ tr.querySelector(".card-target").checked=data.target;
+ tr.querySelectorAll("input,select").forEach(el=>el.addEventListener("input",calculate));
+ tr.querySelector(".remove").addEventListener("click",()=>{tr.remove();calculate();});
+ $("cardRows").appendChild(tr);
+}
+function loadSample(){ $("cardRows").innerHTML=""; sample.forEach(addRow); calculate(); }
+function choose(n,k){
+ if(k<0||k>n)return 0n;
+ k=Math.min(k,n-k);let r=1n;
+ for(let i=1;i<=k;i++)r=r*BigInt(n-k+i)/BigInt(i);
+ return r;
+}
+function read(){
+ const rows=[...$("cardRows").querySelectorAll("tr")].map(tr=>({
+  name:tr.querySelector(".card-name").value.trim(),
+  count:Number(tr.querySelector(".card-count").value),
+  type:tr.querySelector(".card-type").value,
+  target:tr.querySelector(".card-target").checked
+ }));
+ return rows;
+}
+function pct(a,b){return b===0n?0:Number(a)*100/Number(b);}
+function fmt(x){return x.toFixed(2)+"%";}
+function calculate(){
+ const N=Number($("deckSize").value),n=Number($("handSize").value),need=Number($("need").value),rows=read();
+ const total=rows.reduce((s,r)=>s+r.count,0);
+ const status=$("totalStatus");
+ if(!Number.isInteger(N)||N<1||N>100||!Number.isInteger(n)||n<1||n>N||rows.some(r=>!Number.isInteger(r.count)||r.count<0)||total!==N){
+  status.className="status err";
+  status.textContent=`カード合計は ${total} 枚です。デッキ枚数 ${N} 枚と一致させてください。初手枚数・各枚数も確認してください。`;
+  $("normal").textContent=$("basicChance").textContent=$("conditional").textContent="—";
+  $("normalBar").style.width="0%";$("resultText").textContent="入力を修正すると計算結果が表示されます。";return;
+ }
+ const B=rows.filter(r=>r.type==="basic").reduce((s,r)=>s+r.count,0);
+ const TB=rows.filter(r=>r.type==="basic"&&r.target).reduce((s,r)=>s+r.count,0);
+ const TO=rows.filter(r=>r.type==="other"&&r.target).reduce((s,r)=>s+r.count,0);
+ const NB=B-TB, NO=N-B-TO;
+ const denom=choose(N,n);
+ let normalGood=0n,conditionalGood=0n,withBasic=denom-choose(N-B,n);
+ for(let i=0;i<=TB;i++){
+  for(let j=0;j<=TO;j++){
+   if(i+j<need)continue;
+   for(let k=0;k<=NB;k++){
+    for(let l=0;l<=NO;l++){
+     if(i+j+k+l!==n || i+k===0)continue;
+     conditionalGood+=choose(TB,i)*choose(TO,j)*choose(NB,k)*choose(NO,l);
+    }
+   }
+  }
+ }
+ // Unconditional probability: sum all four categories, without requiring a Basic Pokémon.
+ for(let i=0;i<=TB;i++)for(let j=0;j<=TO;j++)if(i+j>=need){
+  const rest=n-i-j;
+  for(let k=Math.max(0,rest-NO);k<=Math.min(NB,rest);k++){
+   const l=rest-k;
+   normalGood+=choose(TB,i)*choose(TO,j)*choose(NB,k)*choose(NO,l);
+  }
+ }
+ const pNormal=pct(normalGood,denom),pBasic=pct(withBasic,denom),pConditional=pct(conditionalGood,withBasic);
+ status.className="status ok";
+ status.textContent=`入力OK：${total}/${N}枚。たねポケモン ${B}枚、対象カード ${TB+TO}枚。`;
+ $("normal").textContent=fmt(pNormal);$("basicChance").textContent=fmt(pBasic);$("conditional").textContent=withBasic===0n?"計算不可":fmt(pConditional);
+ $("normalBar").style.width=Math.max(0,Math.min(100,pNormal))+"%";
+ const targetNames=rows.filter(r=>r.target&&r.count>0).map(r=>r.name||"名前未入力").join("、");
+ $("resultText").textContent=targetNames?`対象：${targetNames}。${need}枚以上引く確率を表示しています。`:"「対象」にチェックを入れたカードがありません。";
+}
+$("addRow").addEventListener("click",()=>{addRow();calculate();});
+$("reset").addEventListener("click",loadSample);
+["deckSize","handSize","need"].forEach(id=>$(id).addEventListener("input",calculate));
+loadSample();
+})();
+</script>
+</body>
+</html>
