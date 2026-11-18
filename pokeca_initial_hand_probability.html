@@ -68,29 +68,23 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
 <section class="panel">
 <h2>2. カードの登録</h2>
 <p class="note">カード名またはカードのグループ名と枚数を入力してください。「たね」は、たねポケモンとして扱うカードにチェックします。「対象」は確率を調べたいカードです。カードの合計がデッキ枚数と一致する必要があります。</p>
-<div class="table-wrap">
-<table><thead><tr><th>カード名・グループ名</th><th>枚数</th><th>分類</th><th class="center">対象</th><th></th></tr></thead><tbody id="cardRows"></tbody></table>
-</div>
+<div class="table-wrap"><table><thead><tr><th>カード名・グループ名</th><th>枚数</th><th>分類</th><th class="center">対象</th><th></th></tr></thead><tbody id="cardRows"></tbody></table></div>
 <div class="actions"><button class="secondary" id="addRow" type="button">＋ カードを追加</button><button class="secondary" id="reset" type="button">サンプルに戻す</button></div>
 <div id="totalStatus" class="status" aria-live="polite"></div>
 </section>
 <section class="panel">
 <h2>3. 計算結果</h2>
-<div class="results">
+<div class="actions"><button class="primary" id="calculateButton" type="button">計算する</button></div>
+<div class="results" style="margin-top:12px">
 <div class="result"><div><div class="label">通常の初手確率</div><div class="sub">指定した対象を引く確率</div></div><div class="value" id="normal">—</div></div>
 <div class="result"><div><div class="label">たねポケモンを含む確率</div><div class="sub">初手に1枚以上ある確率</div></div><div class="value" id="basicChance">—</div></div>
 <div class="result"><div><div class="label">マリガン考慮後</div><div class="sub">たねポケモンがある初手に限定</div></div><div class="value" id="conditional">—</div></div>
 </div>
 <div class="bar"><span id="normalBar"></span></div>
-<p id="resultText" class="note" aria-live="polite">カードを登録すると自動で計算します。</p>
-<details><summary>計算方法について</summary>
-<p class="small">カードを重複なしで引く組合せを用いた超幾何分布で計算します。「マリガン考慮後」は、最初の手札にたねポケモンが1枚以上あるという条件のもとでの確率です。実際の対戦で発生する相手への追加ドローなどは計算対象外です。</p>
-</details>
+<p id="resultText" class="note" aria-live="polite">「計算する」を押すと結果が表示されます。</p>
+<details><summary>計算方法について</summary><p class="small">カードを重複なしで引く組合せを用いた超幾何分布で計算します。「マリガン考慮後」は、最初の手札にたねポケモンが1枚以上あるという条件のもとでの確率です。実際の対戦で発生する相手への追加ドローなどは計算対象外です。</p></details>
 </section>
-<section class="panel">
-<h2>使い方の例</h2>
-<p class="small">サンプルでは「たねポケモン12枚」を対象にしています。実際に使うときは、カード名・枚数・分類・対象チェックを自分のデッキに合わせて変更してください。複数のカードを対象にすると、それらを合計した枚数を引く確率になります。</p>
-</section>
+<section class="panel"><h2>使い方の例</h2><p class="small">サンプルでは「たねポケモン12枚」を対象にしています。実際に使うときは、カード名・枚数・分類・対象チェックを自分のデッキに合わせて変更してください。複数のカードを対象にすると、それらを合計した枚数を引く確率になります。</p></section>
 <footer>ポケカの教室｜非公式ファンサイト・確率計算ツール</footer>
 </main>
 <script>
@@ -127,54 +121,44 @@ function choose(n,k){
  return r;
 }
 function read(){
- const rows=[...$("cardRows").querySelectorAll("tr")].map(tr=>({
+ return [...$("cardRows").querySelectorAll("tr")].map(tr=>({
   name:tr.querySelector(".card-name").value.trim(),
   count:Number(tr.querySelector(".card-count").value),
   type:tr.querySelector(".card-type").value,
   target:tr.querySelector(".card-target").checked
  }));
- return rows;
 }
 function pct(a,b){return b===0n?0:Number(a)*100/Number(b);}
 function fmt(x){return x.toFixed(2)+"%";}
 function calculate(){
  const N=Number($("deckSize").value),n=Number($("handSize").value),need=Number($("need").value),rows=read();
- const total=rows.reduce((s,r)=>s+r.count,0);
- const status=$("totalStatus");
+ const total=rows.reduce((s,r)=>s+r.count,0),status=$("totalStatus");
  if(!Number.isInteger(N)||N<1||N>100||!Number.isInteger(n)||n<1||n>N||rows.some(r=>!Number.isInteger(r.count)||r.count<0)||total!==N){
   status.className="status err";
   status.textContent=`カード合計は ${total} 枚です。デッキ枚数 ${N} 枚と一致させてください。初手枚数・各枚数も確認してください。`;
   $("normal").textContent=$("basicChance").textContent=$("conditional").textContent="—";
-  $("normalBar").style.width="0%";$("resultText").textContent="入力を修正すると計算結果が表示されます。";return;
+  $("normalBar").style.width="0%";$("resultText").textContent="入力を修正すると計算できます。";return;
  }
  const B=rows.filter(r=>r.type==="basic").reduce((s,r)=>s+r.count,0);
  const TB=rows.filter(r=>r.type==="basic"&&r.target).reduce((s,r)=>s+r.count,0);
  const TO=rows.filter(r=>r.type==="other"&&r.target).reduce((s,r)=>s+r.count,0);
- const NB=B-TB, NO=N-B-TO;
- const denom=choose(N,n);
+ const NB=B-TB,NO=N-B-TO,denom=choose(N,n);
  let normalGood=0n,conditionalGood=0n,withBasic=denom-choose(N-B,n);
- for(let i=0;i<=TB;i++){
-  for(let j=0;j<=TO;j++){
-   if(i+j<need)continue;
-   for(let k=0;k<=NB;k++){
-    for(let l=0;l<=NO;l++){
-     if(i+j+k+l!==n || i+k===0)continue;
-     conditionalGood+=choose(TB,i)*choose(TO,j)*choose(NB,k)*choose(NO,l);
-    }
-   }
+ for(let i=0;i<=TB;i++)for(let j=0;j<=TO;j++){
+  if(i+j<need)continue;
+  for(let k=0;k<=NB;k++)for(let l=0;l<=NO;l++){
+   if(i+j+k+l!==n||i+k===0)continue;
+   conditionalGood+=choose(TB,i)*choose(TO,j)*choose(NB,k)*choose(NO,l);
   }
  }
- // Unconditional probability: sum all four categories, without requiring a Basic Pokémon.
  for(let i=0;i<=TB;i++)for(let j=0;j<=TO;j++)if(i+j>=need){
   const rest=n-i-j;
   for(let k=Math.max(0,rest-NO);k<=Math.min(NB,rest);k++){
-   const l=rest-k;
-   normalGood+=choose(TB,i)*choose(TO,j)*choose(NB,k)*choose(NO,l);
+   const l=rest-k;normalGood+=choose(TB,i)*choose(TO,j)*choose(NB,k)*choose(NO,l);
   }
  }
  const pNormal=pct(normalGood,denom),pBasic=pct(withBasic,denom),pConditional=pct(conditionalGood,withBasic);
- status.className="status ok";
- status.textContent=`入力OK：${total}/${N}枚。たねポケモン ${B}枚、対象カード ${TB+TO}枚。`;
+ status.className="status ok";status.textContent=`入力OK：${total}/${N}枚。たねポケモン ${B}枚、対象カード ${TB+TO}枚。`;
  $("normal").textContent=fmt(pNormal);$("basicChance").textContent=fmt(pBasic);$("conditional").textContent=withBasic===0n?"計算不可":fmt(pConditional);
  $("normalBar").style.width=Math.max(0,Math.min(100,pNormal))+"%";
  const targetNames=rows.filter(r=>r.target&&r.count>0).map(r=>r.name||"名前未入力").join("、");
@@ -182,6 +166,7 @@ function calculate(){
 }
 $("addRow").addEventListener("click",()=>{addRow();calculate();});
 $("reset").addEventListener("click",loadSample);
+$("calculateButton").addEventListener("click",calculate);
 ["deckSize","handSize","need"].forEach(id=>$(id).addEventListener("input",calculate));
 loadSample();
 })();
