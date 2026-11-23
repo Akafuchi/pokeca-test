@@ -57,6 +57,15 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
 <header><div class="head"><div class="brand">ポケカの教室</div><h1>初手確率計算ツール</h1><p>デッキの採用枚数から、初手でカードを引く確率を計算します。</p></div></header>
 <main>
 <section class="panel">
+<h2>デッキコードから読み込む</h2>
+<p class="note">ポケモンカード公式サイトのデッキコードを入力すると、デッキのカードを下の「カードの登録」に自動で反映します。たねポケモンの判定も自動で行います。</p>
+<div class="controls" style="grid-template-columns:1fr auto;margin-top:10px">
+<div><label for="deckCode">デッキコード</label><input id="deckCode" type="text" placeholder="例：VVFvkk-wWhMxg-Fk5fFf" autocomplete="off"></div>
+<div style="display:flex;align-items:flex-end"><button class="primary" id="loadDeck" type="button">読み込む</button></div>
+</div>
+<div id="deckStatus" class="status" aria-live="polite"></div>
+</section>
+<section class="panel">
 <h2>1. デッキ・手札の設定</h2>
 <div class="controls">
 <div><label for="deckSize">デッキ枚数</label><input id="deckSize" type="number" min="1" max="100" value="60"></div>
@@ -163,6 +172,28 @@ function calculate(){
  const targetNames=rows.filter(r=>r.target&&r.count>0).map(r=>r.name||"名前未入力").join("、");
  $("resultText").textContent=targetNames?`対象：${targetNames}。${need}枚以上引く確率を表示しています。`:"「対象」にチェックを入れたカードがありません。";
 }
+const RELAY_URL="https://pokeca-deck-relay.hareo-kasanashi.workers.dev/deck";
+async function loadDeck(){
+ const code=$("deckCode").value.trim(),status=$("deckStatus"),btn=$("loadDeck");
+ if(!code){status.className="status err";status.textContent="デッキコードを入力してください。";return;}
+ if(RELAY_URL.includes("example.workers.dev")){status.className="status err";status.textContent="中継サーバーのURLが未設定です。";return;}
+ btn.disabled=true;status.className="status";status.textContent="読み込み中です。たねポケモンの判定まで少し時間がかかることがあります。";
+ try{
+  const res=await fetch(RELAY_URL+"?code="+encodeURIComponent(code));
+  const data=await res.json();
+  if(!res.ok||data.error)throw new Error(data.error||"読み込みに失敗しました");
+  $("cardRows").innerHTML="";
+  data.cards.forEach(c=>addRow({name:c.name,count:c.count,type:(c.category==="ポケモン"&&c.isBasic)?"basic":"other",target:false}));
+  $("deckSize").value=data.total;
+  calculate();
+  status.className="status ok";
+  status.textContent=`読み込みました：全${data.total}枚（たねポケモン ${data.basicTotal}枚）。確率を調べたいカードに「対象」のチェックを入れてください。`+(data.warnings&&data.warnings.length?" 注意："+data.warnings.join("／"):"");
+ }catch(e){
+  status.className="status err";status.textContent="読み込めませんでした："+e.message;
+ }finally{btn.disabled=false;}
+}
+$("loadDeck").addEventListener("click",loadDeck);
+$("deckCode").addEventListener("keydown",e=>{if(e.key==="Enter")loadDeck();});
 $("addRow").addEventListener("click",()=>{addRow();calculate();});
 $("reset").addEventListener("click",loadSample);
 ["deckSize","handSize","need"].forEach(id=>$(id).addEventListener("input",calculate));
