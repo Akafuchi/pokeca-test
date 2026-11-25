@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#172d4d">
+<title>ダメージ計算ツール｜ポケカの教室</title>
+<meta name="description" content="ポケモンカードのワザのダメージを、公式ルールの計算順序（弱点・抵抗力・効果）どおりに計算する無料ツール。計算過程も表示します。">
+<style>
+:root{--navy:#172d4d;--red:#d94b4b;--ink:#172033;--muted:#64748b;--line:#dbe2ea;--bg:#f4f6f9;--white:#fff;--green:#16794b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;line-height:1.55}
+header{background:var(--navy);color:white;padding:22px 16px}
+.head{max-width:980px;margin:auto}
+.brand{font-size:13px;letter-spacing:.08em;color:#d9e5f5}
+h1{font-size:clamp(22px,4vw,30px);margin:5px 0 4px}
+header p{margin:0;color:#d9e5f5;font-size:14px}
+main{max-width:980px;margin:22px auto;padding:0 14px 36px}
+.panel{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #172d4d0a}
+h2{font-size:18px;margin:0 0 12px;color:var(--navy)}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0}
+.controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.controls.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:5px}
+input[type=number],select{width:100%;min-height:42px;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:white;color:var(--ink);font:inherit}
+input:focus,select:focus,button:focus{outline:3px solid #93c5fd;outline-offset:1px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--navy);vertical-align:middle}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px;font-weight:600;margin-top:10px}
+.check small{display:block;font-weight:400;color:var(--muted)}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;font-size:14px;cursor:pointer}
+.primary{background:var(--navy);color:white}
+.secondary{background:#e8edf4;color:var(--navy)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.result{background:#f7f9fc;border:1px solid var(--line);border-radius:11px;padding:13px}
+.result .label{font-size:12px;color:var(--muted);font-weight:700}
+.result .value{font-size:clamp(21px,4vw,29px);font-weight:800;color:var(--navy);margin-top:4px;font-variant-numeric:tabular-nums}
+.result .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.status{font-size:13px;font-weight:700;margin:10px 0 0}
+.status.ok{color:var(--green)} .status.err{color:#b42318}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 7px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}
+th{color:var(--muted);font-weight:700;background:#f8fafc}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+details{margin-top:12px}
+summary{cursor:pointer;font-weight:700;color:var(--navy);font-size:14px}
+.small{font-size:12px;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+@media(max-width:640px){main{margin-top:14px}.panel{padding:14px}.controls,.controls.two{grid-template-columns:1fr 1fr}.results{grid-template-columns:1fr}.result{display:flex;align-items:center;justify-content:space-between;gap:10px}.result .value{font-size:24px}.result .sub{max-width:45%;text-align:right}}
+</style>
+</head>
+<body>
+<header><div class="head"><div class="brand">ポケカの教室</div><h1>ダメージ計算ツール</h1><p>ワザのダメージを、公式ルールの計算順序どおりに計算します。計算過程も表示します。</p></div></header>
+<main>
+<section class="panel">
+<h2>1. ワザと攻撃側の効果</h2>
+<div class="controls">
+<div><label for="baseDamage">ワザのダメージ</label><input id="baseDamage" type="number" min="0" step="10" value="120"></div>
+<div><label for="attackMod">攻撃側の効果（＋／−）</label><input id="attackMod" type="number" step="10" value="0"></div>
+<div><label for="defenderHp">相手の残りHP（任意）</label><input id="defenderHp" type="number" min="0" step="10" placeholder="例：280"></div>
+</div>
+<div style="margin-top:12px"><label for="attackTool">攻撃側のポケモンのどうぐ</label>
+<select id="attackTool">
+<option value="none" data-value="0" data-cond="">なし</option>
+<option value="maximum" data-value="50" data-cond="条件：相手のバトル場の「ポケモンex」へのダメージのみ。ACE SPEC。">マキシマムベルト（＋50）</option>
+<option value="brave" data-value="30" data-cond="条件：つけたポケモンが「ルールを持つポケモン」でないこと。相手のバトル場の「ポケモンex」へのダメージのみ。">ブレイブバングル（＋30）</option>
+<option value="hop" data-value="30" data-cond="条件：つけたポケモンが「ホップのポケモン」であること。相手のバトルポケモンへのダメージのみ。">ホップのこだわりハチマキ（＋30）</option>
+<option value="kusari" data-value="40" data-cond="条件：つけたポケモンがどくタイプであること。相手のバトルポケモンへのダメージのみ。">くさりもち（＋40）</option>
+<option value="denkidama" data-value="50" data-cond="条件：つけたポケモンが「ピカチュウex」であること。相手のバトル場の「ポケモンex」へのダメージのみ。">でんきだま（＋50）</option>
+<option value="kodawari" data-value="30" data-cond="条件：相手のバトル場の「ポケモンV」へのダメージのみ。Fレギュレーションのカードで、現在のスタンダードでは使えません。">こだわりベルト（＋30・旧レギュ）</option>
+</select>
+<p class="note" id="attackToolNote"></p></div>
+<p class="note">「ワザのダメージ」は、ワザ名の右に書かれた数字を入れてください。「＋」「×」などがつくワザは、説明文どおりに計算した後の数字を入れてください。攻撃側の効果（手入力）は、パワープロテイン（闘ポケモンのワザ＋30）など、どうぐ以外の効果の合計を入れてください。どうぐの効果は上の選択と自動で合計されます。条件に当てはまらない場合は、どうぐを「なし」にしてください。</p>
+</section>
+<section class="panel">
+<h2>2. 弱点・抵抗力</h2>
+<div class="controls">
+<div><label for="weakness">弱点</label><select id="weakness"><option value="1">なし</option><option value="2">弱点 ×2</option></select></div>
+<div><label for="resistance">抵抗力</label><select id="resistance"><option value="0">なし</option><option value="30">抵抗力 −30</option><option value="20">抵抗力 −20（旧カード等）</option></select></div>
+<div><label for="defenseMod">防御側の効果（＋／−）</label><input id="defenseMod" type="number" step="10" value="0"></div>
+</div>
+<div style="margin-top:12px"><label for="defenseTool">防御側のポケモンのどうぐ</label>
+<select id="defenseTool">
+<option value="none" data-dmg="0" data-hp="0" data-cond="">なし</option>
+<option value="hero" data-dmg="0" data-hp="100" data-cond="最大HPが＋100されます（ダメージ自体は減りません）。ACE SPEC。残りHPの入力には、この増加分を含めないでください。">ヒーローマント（最大HP＋100）</option>
+<option value="powerweight" data-dmg="0" data-hp="70" data-cond="条件：つけたポケモンが「シロナのポケモン」であること。最大HPが＋70されます。残りHPの入力には、この増加分を含めないでください。">シロナのパワーウエイト（最大HP＋70）</option>
+<option value="seinaru" data-dmg="-30" data-hp="0" data-cond="条件：ワザを使うポケモンが特性を持っていること。">せいなるおまもり（受けるダメージ−30）</option>
+<option value="tokuchu" data-dmg="-60" data-hp="0" data-cond="条件：つけたポケモンが「メガシンカex」でなく、ワザを使うポケモンが「メガシンカex」であること。">とくちゅうチョッキ（受けるダメージ−60）</option>
+<option value="buatsui" data-dmg="-50" data-hp="0" data-cond="条件：つけたポケモンが竜ポケモンで、ワザを使うポケモンが草・炎・水・雷のいずれかであること。">ぶあついうろこ（受けるダメージ−50）</option>
+<option value="nomi" data-dmg="-60" data-hp="0" data-cond="条件：ワザを使うポケモンのタイプが、その「のみ」に対応するタイプであること（例：オッカのみ＝炎）。1回使ったらトラッシュされます。">タイプ別のみ（受けるダメージ−60・1回のみ）</option>
+<option value="survive" data-dmg="0" data-hp="0" data-cond="ダメージは減りません。HPが満タンの状態でワザのダメージを受けてきぜつするとき、残りHPが「10」で場に残ります（その後トラッシュ）。きぜつ判定の欄に注記が出ます。ACE SPEC。">サバイブギプス（きぜつ回避・満タンのとき）</option>
+</select>
+<p class="note" id="defenseToolNote"></p></div>
+<p class="note">防御側の効果（手入力）は、どうぐ以外の効果の合計です（例：「受けるワザのダメージは−20される」なら −20 と入力）。どうぐの効果は上の選択と自動で合計されます。ポケモンのどうぐは1匹に1枚だけなので、防御側も1つだけ選ぶ仕様にしています。反撃でダメカンをのせるどうぐ（デラックスボムなど）は、受けるダメージ自体を変えないため、このツールでは扱いません。</p>
+<label class="check"><input type="checkbox" id="isBench"><span>ベンチポケモンへのダメージ<small>弱点・抵抗力は計算しません（公式ルール）。攻撃側・防御側の効果は、カードの説明文どおりの場合のみ入れてください。</small></span></label>
+<label class="check"><input type="checkbox" id="ignoreWeakRes"><span>弱点・抵抗力を計算しないワザ<small>ワザの説明文に「弱点・抵抗力を計算しない」と書かれている場合にチェックします。</small></span></label>
+</section>
+<section class="panel">
+<h2>3. 計算結果</h2>
+<div class="results">
+<div class="result"><div><div class="label">最終ダメージ</div><div class="sub">相手に与えるダメージ</div></div><div class="value" id="finalDamage">—</div></div>
+<div class="result"><div><div class="label">ダメカンの数</div><div class="sub">10ダメージにつき1個</div></div><div class="value" id="counters">—</div></div>
+<div class="result"><div><div class="label">相手の残りHP</div><div class="sub">HPを入力した場合のみ</div></div><div class="value" id="remainingHp">—</div></div>
+</div>
+<div id="koStatus" class="status" aria-live="polite"></div>
+<h2 style="margin-top:18px">計算過程（公式ルールの順序）</h2>
+<table><thead><tr><th>手順</th><th>内容</th><th class="num">ダメージ</th></tr></thead><tbody id="steps"></tbody></table>
+<p class="note">計算順序は公式「上級プレイヤー用ルールガイド」のダメージ計算の手順に沿っています：①ワザのダメージ → ②攻撃側の効果 → ③弱点 → ④抵抗力 → ⑤防御側の効果。</p>
+<details><summary>このツールで計算できないもの</summary><p class="small">ダメカンを「のせる」効果はダメージではないため、弱点・抵抗力やダメージ変更効果を受けません。このツールでは計算しないでください。また、特定のカード同士の特殊な裁定（効果を受けない状態など）は個別に公式テキストで確認してください。ダメージが0になった時点で計算は終わる、という公式手順に沿い、途中で0以下になった場合は0として扱います。</p></details>
+<div class="actions"><button class="secondary" id="presetWeak" type="button">例：弱点×2（120→240）</button><button class="secondary" id="presetResist" type="button">例：抵抗力−30（120→90）</button><button class="secondary" id="presetBelt" type="button">例：攻撃＋30して弱点（120→300）</button><button class="secondary" id="presetTool" type="button">例：マキシマムベルト＋弱点（120→340）</button><button class="secondary" id="presetHero" type="button">例：ヒーローマントで耐える（HP280＋100）</button><button class="secondary" id="reset" type="button">リセット</button></div>
+</section>
+<section class="panel"><h2>使い方の例</h2><p class="small">ワザのダメージが120、攻撃するポケモンのタイプが相手の弱点なら、弱点を「×2」にすると240になります。そこへ攻撃側の効果＋30がある場合は、公式の順序では弱点の前に足すため (120＋30)×2＝300 になります。足すタイミングで結果が変わるのが、ダメージ計算で間違えやすいポイントです。</p></section>
+<footer>ポケカの教室｜非公式ファンサイト・ダメージ計算ツール</footer>
+</main>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+// CALC START
+function calcDamage(input){
+  const steps=[];
+  let d=input.base;
+  steps.push({label:"1. ワザのダメージ",value:d});
+  if(d<=0){return {final:0,steps,endedAt:1};}
+  const atkTotal=input.attackMod+(input.attackTool||0);
+  d=d+atkTotal;
+  steps.push({label:"2. 攻撃側の効果（合計 "+(atkTotal>=0?"+":"")+atkTotal+(input.attackTool?"：どうぐ +"+input.attackTool+" を含む":"")+"）",value:Math.max(0,d)});
+  if(d<=0){return {final:0,steps,endedAt:2};}
+  d=Math.max(0,d);
+  if(input.applyWeakRes && input.weakness>1){
+    d=d*input.weakness;
+    steps.push({label:"3. 弱点 ×"+input.weakness,value:d});
+  } else {
+    steps.push({label:"3. 弱点（計算しない）",value:d});
+  }
+  if(input.applyWeakRes && input.resistance>0){
+    d=d-input.resistance;
+    steps.push({label:"4. 抵抗力 −"+input.resistance,value:Math.max(0,d)});
+    if(d<=0){return {final:0,steps,endedAt:4};}
+  } else {
+    steps.push({label:"4. 抵抗力（計算しない）",value:d});
+  }
+  const defTotal=input.defenseMod+(input.defenseTool||0);
+  d=Math.max(0,d)+defTotal;
+  steps.push({label:"5. 防御側の効果（合計 "+(defTotal>=0?"+":"")+defTotal+(input.defenseTool?"：どうぐ "+input.defenseTool+" を含む":"")+"）",value:Math.max(0,d)});
+  return {final:Math.max(0,d),steps,endedAt:null};
+}
+// CALC END
+function num(id){const v=Number($(id).value);return Number.isFinite(v)?v:0;}
+function toolVal(selId,attr){const o=$(selId).selectedOptions[0];return o?Number(o.dataset[attr]||0):0;}
+function toolNote(selId,noteId){const o=$(selId).selectedOptions[0];$(noteId).textContent=o&&o.dataset.cond?o.dataset.cond:"";}
+function calculate(){
+  toolNote("attackTool","attackToolNote");toolNote("defenseTool","defenseToolNote");
+  const base=num("baseDamage"),attackMod=num("attackMod"),defenseMod=num("defenseMod");
+  const attackTool=toolVal("attackTool","value"),defenseTool=toolVal("defenseTool","dmg"),hpBonus=toolVal("defenseTool","hp");
+  const isSurvive=$("defenseTool").value==="survive";
+  const isBench=$("isBench").checked,ignore=$("ignoreWeakRes").checked;
+  const applyWeakRes=!isBench&&!ignore;
+  const weakness=Number($("weakness").value),resistance=Number($("resistance").value);
+  const status=$("koStatus");
+  if(base<0||base%10!==0){
+    status.className="status err";status.textContent="ワザのダメージは0以上の10の倍数で入力してください。";
+    $("finalDamage").textContent=$("counters").textContent=$("remainingHp").textContent="—";$("steps").innerHTML="";return;
+  }
+  const r=calcDamage({base,attackMod,defenseMod,attackTool,defenseTool,weakness,resistance,applyWeakRes});
+  $("finalDamage").textContent=r.final;
+  $("counters").textContent=(r.final/10)+"個";
+  $("steps").innerHTML=r.steps.map(s=>"<tr><td>"+s.label.split(". ")[0]+".</td><td>"+s.label.substring(s.label.indexOf(" ")+1)+"</td><td class='num'>"+s.value+"</td></tr>").join("");
+  const hpRaw=$("defenderHp").value.trim();
+  if(hpRaw===""){
+    $("remainingHp").textContent="—";status.className="status";status.textContent=r.endedAt?"途中でダメージが0になったため、公式の手順どおり計算を終了しました。":"";
+    return;
+  }
+  const hp=Number(hpRaw)+hpBonus,remain=hp-r.final;
+  $("remainingHp").textContent=Math.max(0,remain);
+  if(r.final>=hp&&hp>0){
+    if(isSurvive){status.className="status ok";status.textContent="通常なら「きぜつ」するダメージです。ただしサバイブギプスをつけていてHPが満タンだった場合は、残りHP「10」で場に残ります。";}
+    else{status.className="status ok";status.textContent="このダメージで相手のポケモンは「きぜつ」します"+(hpBonus?"（どうぐのHP増加 +"+hpBonus+" を含めたHP "+hp+" で判定）":"")+"（サイドを取る対象かは相手のカードで確認してください）。";}
+  }
+  else{status.className="status";status.textContent="相手のポケモンは残りHP "+Math.max(0,remain)+(hpBonus?"（どうぐのHP増加 +"+hpBonus+" を含む）":"")+" で場に残ります。";}
+}
+function setPreset(base,attackMod,weakness,resistance,defenseMod){
+  $("baseDamage").value=base;$("attackMod").value=attackMod;$("weakness").value=String(weakness);$("resistance").value=String(resistance);$("defenseMod").value=defenseMod;$("isBench").checked=false;$("ignoreWeakRes").checked=false;$("attackTool").value="none";$("defenseTool").value="none";calculate();
+}
+$("presetWeak").addEventListener("click",()=>setPreset(120,0,2,0,0));
+$("presetResist").addEventListener("click",()=>setPreset(120,0,1,30,0));
+$("presetBelt").addEventListener("click",()=>setPreset(120,30,2,0,0));
+$("presetTool").addEventListener("click",()=>{setPreset(120,0,2,0,0);$("attackTool").value="maximum";calculate();});
+$("presetHero").addEventListener("click",()=>{setPreset(300,0,1,0,0);$("defenseTool").value="hero";$("defenderHp").value="280";calculate();});
+$("reset").addEventListener("click",()=>{setPreset(120,0,1,0,0);$("defenderHp").value="";$("attackTool").value="none";$("defenseTool").value="none";calculate();});
+["baseDamage","attackMod","defenseMod","defenderHp","weakness","resistance","isBench","ignoreWeakRes","attackTool","defenseTool"].forEach(id=>$(id).addEventListener("input",calculate));
+calculate();
+})();
+</script>
+</body>
+</html>
